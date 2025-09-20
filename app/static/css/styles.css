@@ -1,0 +1,71 @@
+/* Estilos personalizados para el dashboard */
+
+/* Paleta de colores */
+:root {
+  --azul-oscuro: #003f5c;
+  --violeta: #58508d;
+  --magenta: #bc5090;
+  --coral: #ff6361;
+  --naranja: #ffa600;
+  --hueso: #f8f8f5;
+  --negro: #000000;
+  --gris-claro: #e0e0e0;
+}
+body {
+  background: var(--hueso);
+  color: var(--negro);
+}
+.navbar {
+  background: var(--azul-oscuro) !important;
+  color: #fff;
+}
+.navbar .nav-link, .navbar-brand {
+  color: #fff !important;
+}
+.btn-primary {
+  background: var(--azul-oscuro);
+  border: none;
+}
+.btn-primary:hover {
+  background: var(--coral);
+}
+.btn-secondary {
+  background: var(--naranja);
+  color: #fff;
+  border: none;
+}
+.card {
+  background: var(--hueso);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.07);
+  border: 1px solid var(--gris-claro);
+}
+.kpi-card {
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.05);
+  padding: 1.2rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+.kpi-delitos { background: var(--azul-oscuro); }
+.kpi-victimas { background: var(--violeta); }
+.kpi-frecuente { background: var(--magenta); }
+.kpi-anio { background: var(--coral); }
+.kpi-promedio { background: var(--naranja); }
+.kpi-hombres { background: var(--azul-oscuro); }
+.kpi-mujeres { background: var(--violeta); }
+.table thead th {
+  background: var(--azul-oscuro);
+  color: #fff;
+  border-bottom: 2px solid var(--gris-claro);
+}
+.table tbody tr:nth-child(even) {
+  background: var(--hueso);
+}
+.table tbody tr:nth-child(odd) {
+  background: #fff;
+}
+.table tbody tr:hover {
+  background: var(--gris-claro);
+}

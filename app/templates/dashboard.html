@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Estadísticas de Delitos{% endblock %}
+{% block content %}
+<!-- Filtros globales -->
+<div id="filtros-globales" class="row mb-4">
+  <div class="col-md-3">
+    <label for="provincia" class="form-label">Provincia</label>
+    <select id="provincia" class="form-select"></select>
+  </div>
+  <div class="col-md-3">
+    <label for="partido" class="form-label">Partido</label>
+    <select id="partido" class="form-select"></select>
+  </div>
+  <div class="col-md-2">
+    <label for="anio" class="form-label">Año</label>
+    <select id="anio" class="form-select"></select>
+  </div>
+  <div class="col-md-4">
+    <label for="delito" class="form-label">Delito</label>
+    <select id="delito" class="form-select"></select>
+  </div>
+  <div class="col-md-12 mt-3">
+    <button type="button" id="btn-filtrar" class="btn btn-primary">Aplicar filtro</button>
+  </div>
+</div>
+<!-- KPIs principales -->
+<div class="mb-2">
+  <button class="btn btn-primary" id="btn-export-pdf">Exportar PDF</button>
+</div>
+<div id="kpi-container" class="row mb-4">
+  <div class="col-md-2"><div class="kpi-card kpi-delitos"><h5>Total Delitos</h5><div id="total-delitos">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-victimas"><h5>Total Víctimas</h5><div id="total-victimas">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-anio"><h5>Año con más casos</h5><div id="anio-max">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-frecuente"><h5>Delito más frecuente</h5><div id="delito-frecuente">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-promedio"><h5>Promedio Delitos/Año</h5><div id="promedio-delitos">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-mujeres"><h5>% Mujeres</h5><div id="porc-mujeres">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-hombres"><h5>% Hombres</h5><div id="porc-hombres">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-delitos"><h5>Tasa Delitos</h5><div id="tasa-delitos">-</div></div></div>
+  <div class="col-md-2"><div class="kpi-card kpi-victimas"><h5>Tasa Víctimas</h5><div id="tasa-victimas">-</div></div></div>
+</div>
+<!-- Gráficos principales -->
+<div class="row">
+  <div class="col-md-6 mb-4"><canvas id="evolucionChart"></canvas></div>
+  <div class="col-md-6 mb-4"><canvas id="generoChart"></canvas></div>
+</div>
+
+<!-- Librerías para exportar PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// Inicialización de filtros y KPIs
+function poblarSelect(id, opciones) {
+  const select = document.getElementById(id);
+  select.innerHTML = '<option value="">Todos</option>';
+  opciones.forEach(op => {
+    const opt = document.createElement('option');
+    opt.value = op;
+    opt.textContent = op;
+    select.appendChild(opt);
+  });
+}
+function cargarFiltros() {
+  fetch('/api/filtros')
+    .then(res => res.json())
+    .then(data => {
+      poblarSelect('provincia', data.provincias);
+      poblarSelect('partido', data.partidos);
+      poblarSelect('anio', data.anios);
+      poblarSelect('delito', data.delitos);
+    });
+}
+function mostrarKPIs(kpis) {
+  document.getElementById('total-delitos').textContent = kpis.total_delitos ?? '-';
+  document.getElementById('total-victimas').textContent = kpis.total_victimas ?? '-';
+  document.getElementById('anio-max').textContent = kpis.anio_max ?? '-';
+  document.getElementById('delito-frecuente').textContent = kpis.delito_frecuente ?? '-';
+  document.getElementById('promedio-delitos').textContent = kpis.promedio_delitos ?? '-';
+  document.getElementById('porc-mujeres').textContent = kpis.porc_mujeres + '%' ?? '-';
+  document.getElementById('porc-hombres').textContent = kpis.porc_hombres + '%' ?? '-';
+  document.getElementById('tasa-delitos').textContent = kpis.tasa_delitos ?? '-';
+  document.getElementById('tasa-victimas').textContent = kpis.tasa_victimas ?? '-';
+}
+function cargarKPIs() {
+  const filtros = {
+    provincia: document.getElementById('provincia').value,
+    partido: document.getElementById('partido').value,
+    anio: document.getElementById('anio').value,
+    delito: document.getElementById('delito').value
+  };
+  const params = new URLSearchParams(filtros);
+  fetch(`/api/kpis?${params}`)
+    .then(res => res.json())
+    .then(mostrarKPIs);
+}
+document.getElementById('btn-filtrar').addEventListener('click', cargarKPIs);
+window.addEventListener('DOMContentLoaded', function() {
+  cargarFiltros();
+  cargarKPIs();
+});
+// Exportar PDF de KPIs y gráficos
+document.getElementById('btn-export-pdf').addEventListener('click', function() {
+  (async function() {
+    try {
+      var kpi = document.getElementById('kpi-container');
+      var graf1 = document.getElementById('evolucionChart');
+      var graf2 = document.getElementById('generoChart');
+      var jsPDF = window.jspdf.jsPDF;
+      var pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.setFontSize(14);
+      pdf.text('Dashboard Estadísticas de Delitos', 10, 20);
+      pdf.setFontSize(10);
+      var explicacion = 'Este PDF contiene un resumen visual de los KPIs principales y los gráficos generados según los filtros seleccionados en el dashboard.\n\n';
+      explicacion += 'Gráfico de línea: Muestra la evolución histórica de la cantidad de delitos por año.\n';
+      explicacion += 'Gráfico de torta: Representa la distribución porcentual de víctimas por género (mujeres/hombres).\n';
+      explicacion += 'Las tarjetas KPI muestran totales, promedios y porcentajes relevantes para el análisis.\n';
+      explicacion += 'Este reporte permite compartir y visualizar los datos filtrados de manera clara y profesional.';
+      pdf.text(explicacion, 10, 28, { maxWidth: 190 });
+      var kpiCanvas = await html2canvas(kpi);
+      pdf.addImage(kpiCanvas.toDataURL('image/png'), 'PNG', 10, 50, 190, 0);
+      // Gráfico de evolución
+      if (graf1) {
+        var grafCanvas1 = await html2canvas(graf1);
+        pdf.addPage();
+        pdf.text('Gráfico de línea: Evolución histórica de delitos por año.', 10, 20, { maxWidth: 190 });
+        pdf.addImage(grafCanvas1.toDataURL('image/png'), 'PNG', 10, 30, 190, 0);
+      }
+      // Gráfico de género
+      if (graf2) {
+        var grafCanvas2 = await html2canvas(graf2);
+        pdf.addPage();
+        pdf.text('Gráfico de torta: Distribución de víctimas por género.', 10, 20, { maxWidth: 190 });
+        pdf.addImage(grafCanvas2.toDataURL('image/png'), 'PNG', 10, 30, 190, 0);
+      }
+      pdf.save('dashboard_delitos.pdf');
+    } catch (err) {
+      alert('Error al generar PDF: ' + err);
+    }
+  })();
+});
+</script>
+{% endblock %}

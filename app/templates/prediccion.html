@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+{% block title %}Predicción de Delitos{% endblock %}
+{% block content %}
+<style>
+  body {
+    background: #f7f9fb;
+    font-family: 'Roboto', Arial, sans-serif;
+  }
+  .card-prediccion {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 2px 12px rgba(0,63,92,0.08);
+    padding: 2rem 2.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid #e3e8ee;
+  }
+  .titulo-pred {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #003f5c;
+    margin-bottom: 1.2rem;
+  }
+  .filtros-pred {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .filtros-pred select, .filtros-pred input {
+    border-radius: 8px;
+    border: 1px solid #cfd8dc;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background: #f7f9fb;
+    color: #003f5c;
+  }
+  .btn-pred {
+    background: #003f5c;
+    color: #fff;
+    border-radius: 8px;
+    border: none;
+    padding: 0.7rem 2rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 8px rgba(0,63,92,0.08);
+    transition: background 0.2s;
+  }
+  .btn-pred:hover {
+    background: #2f4b7c;
+  }
+  .kpi-box {
+    background: #e3e8ee;
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.2rem;
+    font-size: 1.1rem;
+    color: #003f5c;
+    font-weight: 500;
+    box-shadow: 0 1px 6px rgba(0,63,92,0.07);
+  }
+  .grafico-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    box-shadow: 0 1px 6px rgba(0,63,92,0.07);
+    border: 1px solid #e3e8ee;
+  }
+  @media (max-width: 900px) {
+    .filtros-pred { flex-direction: column; gap: 1rem; }
+    .card-prediccion { padding: 1rem; }
+  }
+</style>
+<div class="container mt-4">
+  <div class="card-prediccion">
+    <div class="titulo-pred">Predicción de Delitos</div>
+    <div class="mb-2">
+      <button type="button" class="btn btn-primary" id="btn-export-pdf-prediccion">Exportar PDF</button>
+    </div>
+    <div class="filtros-pred">
+      <div>
+        <label for="tipo-modelo">Tipo de modelo</label><br>
+        <select id="tipo-modelo">
+          <option value="prophet">Serie temporal (Prophet)</option>
+          <option value="regresion">Regresión lineal</option>
+        </select>
+      </div>
+      <div>
+        <label for="nivel-modelo">Nivel</label><br>
+        <select id="nivel-modelo">
+          <option value="provincia">Provincia</option>
+          <option value="partido">Partido</option>
+          <option value="delito">Delito</option>
+          <option value="delito_provincia">Delito + Provincia</option>
+          <option value="delito_partido">Delito + Provincia + Partido</option>
+        </select>
+      </div>
+      <div>
+        <label for="provincia">Provincia</label><br>
+        <select id="provincia"></select>
+      </div>
+      <div>
+        <label for="partido">Partido</label><br>
+        <select id="partido"></select>
+      </div>
+      <div>
+        <label for="delito">Delito</label><br>
+        <select id="delito"></select>
+      </div>
+      <div>
+        <label for="anio-inicio">Año inicio</label><br>
+        <input type="number" id="anio-inicio" min="2000" max="2030" value="2023">
+      </div>
+      <div>
+        <label for="anio-fin">Año fin</label><br>
+        <input type="number" id="anio-fin" min="2000" max="2030" value="2028">
+      </div>
+      <div style="align-self: end;">
+        <button class="btn-pred" id="btn-predecir">Predecir</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-5">
+        <div class="kpi-box" id="kpi-prediccion">-</div>
+      </div>
+      <div class="col-md-7">
+        <div class="grafico-box mb-3">
+          <canvas id="graficoPrediccion" height="180"></canvas>
+        </div>
+        <div class="grafico-box" id="graficoCircularBox" style="display:none;">
+          <div style="font-weight:600;color:#003f5c;margin-bottom:0.5rem;">Distribución de delitos más altos</div>
+          <canvas id="graficoCircular" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// Librerías para exportar PDF
+const script1 = document.createElement('script');
+script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+document.head.appendChild(script1);
+const script2 = document.createElement('script');
+script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+document.head.appendChild(script2);
+
+document.getElementById('btn-export-pdf-prediccion').addEventListener('click', function() {
+  (async function() {
+    try {
+      var kpi = document.getElementById('kpi-prediccion');
+      var grafPred = document.getElementById('graficoPrediccion');
+      var grafCirc = document.getElementById('graficoCircularBox');
+      var jsPDF = window.jspdf.jsPDF;
+      var pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.setFontSize(14);
+      pdf.text('Reporte de Predicción de Delitos', 10, 20);
+      pdf.setFontSize(10);
+      var explicacion = 'Este PDF contiene la predicción de delitos según los filtros y modelo seleccionados.\n\n';
+      explicacion += 'KPI: Variación estimada y explicación del modelo y contexto.\n';
+      explicacion += 'Gráfico de línea: Evolución histórica y predicción de delitos en el rango seleccionado.\n';
+      explicacion += 'Gráfico circular: Distribución de los delitos más altos (si hay datos suficientes).';
+      pdf.text(explicacion, 10, 28, { maxWidth: 190 });
+      if (kpi) {
+        var canvasKPI = await html2canvas(kpi);
+        pdf.addImage(canvasKPI.toDataURL('image/png'), 'PNG', 10, 50, 190, 0);
+      }
+      if (grafPred) {
+        var canvasPred = await html2canvas(grafPred);
+        pdf.addPage();
+        pdf.text('Gráfico de línea: Predicción de delitos', 10, 20, { maxWidth: 190 });
+        pdf.addImage(canvasPred.toDataURL('image/png'), 'PNG', 10, 30, 190, 0);
+      }
+      if (grafCirc && grafCirc.style.display !== 'none') {
+        var canvasCirc = await html2canvas(grafCirc);
+        pdf.addPage();
+        pdf.text('Gráfico circular: Distribución de delitos más altos', 10, 20, { maxWidth: 190 });
+        pdf.addImage(canvasCirc.toDataURL('image/png'), 'PNG', 10, 30, 190, 0);
+      }
+      pdf.save('prediccion_delitos.pdf');
+    } catch (err) {
+      alert('Error al generar PDF: ' + err);
+    }
+  })();
+});
+function poblarSelect(id, opciones) {
+  const select = document.getElementById(id);
+  select.innerHTML = '<option value="">Todos</option>';
+  opciones.forEach(op => {
+    const opt = document.createElement('option');
+    opt.value = op;
+    opt.textContent = op;
+    select.appendChild(opt);
+  });
+}
+function cargarFiltros() {
+  fetch('/api/filtros')
+    .then(res => res.json())
+    .then(data => {
+      poblarSelect('provincia', data.provincias);
+      poblarSelect('partido', data.partidos);
+      poblarSelect('delito', data.delitos);
+    });
+}
+cargarFiltros();
+// Actualiza partidos según provincia seleccionada
+async function actualizarPartidos() {
+  const provincia = document.getElementById('provincia').value;
+  const res = await fetch(`/api/filtros?provincia=${encodeURIComponent(provincia)}`);
+  const filtros = await res.json();
+  const partidoSelect = document.getElementById('partido');
+  partidoSelect.innerHTML = '<option value="">Seleccione partido</option>';
+  filtros.partidos.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    partidoSelect.appendChild(opt);
+  });
+}
+// Evento al cambiar provincia
+const provinciaSelect = document.getElementById('provincia');
+if (provinciaSelect) {
+  provinciaSelect.addEventListener('change', actualizarPartidos);
+}
+// Mostrar/ocultar filtros según nivel
+function actualizarFiltrosNivel() {
+  const nivel = document.getElementById('nivel-modelo').value;
+  document.getElementById('provincia').parentElement.style.display = (nivel.includes('provincia') || nivel === 'partido' || nivel === 'delito_partido') ? '' : 'none';
+  document.getElementById('partido').parentElement.style.display = (nivel === 'partido' || nivel === 'delito_partido') ? '' : 'none';
+  document.getElementById('delito').parentElement.style.display = (nivel.includes('delito')) ? '' : 'none';
+}
+document.getElementById('nivel-modelo').addEventListener('change', actualizarFiltrosNivel);
+window.addEventListener('DOMContentLoaded', actualizarFiltrosNivel);
+let graficoPred;
+async function predecir() {
+  const tipo = document.getElementById('tipo-modelo').value;
+  const nivel = document.getElementById('nivel-modelo').value;
+  const provincia = document.getElementById('provincia').value;
+  const partido = document.getElementById('partido').value;
+  const delito = document.getElementById('delito').value;
+  const anioInicio = parseInt(document.getElementById('anio-inicio').value);
+  const anioFin = parseInt(document.getElementById('anio-fin').value);
+  // Validación de filtros obligatorios
+  if (nivel === 'provincia' && !provincia) {
+    alert('Debes seleccionar una provincia.');
+    return;
+  }
+  if (nivel === 'partido' && !partido) {
+    alert('Debes seleccionar un partido.');
+    return;
+  }
+  if (nivel === 'delito' && !delito) {
+    alert('Debes seleccionar un delito.');
+    return;
+  }
+  if (nivel === 'delito_provincia' && (!delito || !provincia)) {
+    alert('Debes seleccionar un delito y una provincia.');
+    return;
+  }
+  if (nivel === 'delito_partido' && (!delito || !provincia || !partido)) {
+    alert('Debes seleccionar un delito, una provincia y un partido.');
+    return;
+  }
+  const params = new URLSearchParams({ tipo, nivel, provincia, partido, delito, anio_inicio: anioInicio, anio_fin: anioFin });
+  const res = await fetch(`/api/predict?${params}`);
+  const data = await res.json();
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+  // Mostrar KPI explicativo
+  mostrarKPI(tipo, nivel, provincia, partido, delito, data.resultados);
+  // Gráfico evolución
+  const labels = data.resultados.map(r => r.anio);
+  const valores = data.resultados.map(r => r.valor);
+  if (graficoPred) graficoPred.destroy();
+  graficoPred = new Chart(document.getElementById('graficoPrediccion').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Predicción Delitos',
+        data: valores,
+        borderColor: tipo === 'prophet' ? '#ff6361' : '#003f5c',
+        backgroundColor: 'rgba(0,63,92,0.12)',
+        fill: true
+      }]
+    }
+  });
+  // Gráfico circular de delitos más altos
+  const graficoCircularBox = document.getElementById('graficoCircularBox');
+  const canvasCirc = document.getElementById('graficoCircular');
+  // Siempre mostrar el box, pero ocultar solo el canvas si no hay datos
+  graficoCircularBox.style.display = '';
+  canvasCirc.style.display = 'none';
+  let mensajeNoDatos = document.getElementById('mensajeNoDatosCirc');
+  if (mensajeNoDatos) mensajeNoDatos.remove();
+  if ((nivel === 'provincia' || nivel === 'partido') && data.delitos_agrupados && data.delitos_agrupados.length > 0) {
+    // Limpiar canvas antes de renderizar
+    canvasCirc.width = canvasCirc.width;
+    canvasCirc.style.display = '';
+    const ctxCirc = canvasCirc.getContext('2d');
+    const labelsCirc = data.delitos_agrupados.map(d => d.delito);
+    const valoresCirc = data.delitos_agrupados.map(d => d.valor);
+    const coloresCirc = [
+      '#003f5c', '#2f4b7c', '#665191', '#a05195', '#ff6361', '#ffa600', '#e3e8ee'
+    ];
+    if (window.graficoCircular && typeof window.graficoCircular.destroy === 'function') {
+      window.graficoCircular.destroy();
+      window.graficoCircular = null;
+    }
+    console.log('Renderizando gráfico circular', labelsCirc, valoresCirc);
+    window.graficoCircular = new Chart(ctxCirc, {
+      type: 'doughnut',
+      data: {
+        labels: labelsCirc,
+        datasets: [{
+          data: valoresCirc,
+          backgroundColor: coloresCirc.slice(0, labelsCirc.length),
+          borderColor: '#fff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { color: '#003f5c', font: { size: 14 } }
+          }
+        }
+      }
+    });
+  } else {
+    canvasCirc.style.display = 'none';
+    if (window.graficoCircular) {
+      window.graficoCircular.destroy();
+      window.graficoCircular = null;
+    }
+    // Mostrar mensaje si no hay datos
+    const msg = document.createElement('div');
+    msg.id = 'mensajeNoDatosCirc';
+    msg.style = 'color:#2f4b7c;font-weight:500;padding:2rem;text-align:center;';
+    msg.textContent = 'No hay datos suficientes para mostrar la distribución de delitos.';
+    graficoCircularBox.appendChild(msg);
+    console.log('No hay datos para gráfico circular');
+  }
+}
+function mostrarKPI(tipo, nivel, provincia, partido, delito, resultados) {
+  const kpiBox = document.getElementById('kpi-prediccion');
+  if (!resultados || resultados.length < 2) {
+    kpiBox.innerHTML = '<span style="color:#003f5c;font-size:1.5rem;font-weight:700">-</span>';
+    return;
+  }
+  const inicial = resultados[0].valor;
+  const final = resultados[resultados.length-1].valor;
+  const variacion = ((final-inicial)/inicial)*100;
+  let mensaje = '';
+  let contexto = '';
+  if (nivel === 'provincia') {
+    mensaje = `El delito <b>${delito || 'Total Delitos'}</b> en <b>${provincia}</b>:`;
+    contexto = `Provincia: <span class="badge" style="background:#2f4b7c;color:#fff">${provincia}</span>`;
+  } else if (nivel === 'partido') {
+    mensaje = `El delito <b>${delito || 'Total Delitos'}</b> en <b>${partido}</b>, <b>${provincia}</b>:`;
+    contexto = `Partido: <span class="badge" style="background:#2f4b7c;color:#fff">${partido}</span> | Provincia: <span class="badge" style="background:#2f4b7c;color:#fff">${provincia}</span>`;
+  } else if (nivel === 'delito') {
+    mensaje = `El delito <b>${delito}</b> a nivel nacional:`;
+    contexto = `<span class="badge" style="background:#2f4b7c;color:#fff">Nacional</span>`;
+  } else if (nivel === 'delito_provincia') {
+    mensaje = `El delito <b>${delito}</b> en <b>${provincia}</b>:`;
+    contexto = `Provincia: <span class="badge" style="background:#2f4b7c;color:#fff">${provincia}</span>`;
+  } else if (nivel === 'delito_partido') {
+    mensaje = `El delito <b>${delito}</b> en <b>${partido}</b>, <b>${provincia}</b>:`;
+    contexto = `Partido: <span class="badge" style="background:#2f4b7c;color:#fff">${partido}</span> | Provincia: <span class="badge" style="background:#2f4b7c;color:#fff">${provincia}</span>`;
+  } else {
+    mensaje = `Variación estimada:`;
+    contexto = '';
+  }
+  const tipoModelo = tipo === 'prophet' ? 'Serie temporal (Prophet)' : 'Regresión lineal';
+  kpiBox.innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">
+      <span class="badge" style="background:#003f5c;color:#fff;font-size:1rem;padding:0.5em 1em;border-radius:8px;">${tipoModelo}</span>
+      ${contexto}
+    </div>
+    <div style="font-size:2.5rem;font-weight:800;color:#003f5c;line-height:1;margin-bottom:0.5rem;">
+      ${variacion.toFixed(2)}%
+    </div>
+    <div style="font-size:1.1rem;color:#2f4b7c;margin-bottom:0.5rem;">${mensaje}</div>
+    <div style="font-size:0.95rem;color:#003f5c;margin-bottom:0.5rem;">Para el rango de tiempo seleccionado (${resultados[0].anio} - ${resultados[resultados.length-1].anio})</div>
+    <div style="font-size:0.9rem;color:#003f5c;margin-bottom:0.5rem;">Modelos entrenados con dataset público:<br>
+      <a href='https://www.argentina.gob.ar/seguridad/estadisticascriminales/bases-de-datos' target='_blank' style='color:#003f5c;text-decoration:underline;'>SNIC - Departamentos. Anual. Años 2000-2024</a>
+    </div>
+    <div style="font-size:0.85rem;color:#2f4b7c;">Nota: La predicción es estimada y depende de la calidad y cantidad de datos históricos disponibles.</div>
+  `;
+}
+document.getElementById('btn-predecir').addEventListener('click', predecir);
+</script>
+{% endblock %}

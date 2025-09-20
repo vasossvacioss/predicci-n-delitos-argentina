@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Tablero Regional de Delitos{% endblock %}
+{% block content %}
+<style>
+  body { background: #f7f9fb; font-family: 'Roboto', Arial, sans-serif; color: #222; }
+  .dashboard-bar { background: #fff; border-bottom: 1px solid #e3e8ee; position: sticky; top: 0; z-index: 10; }
+  .dashboard-bar .nav-link { color: #003f5c; font-weight: 600; margin-right: 1.2rem; }
+  .dashboard-bar .nav-link.active { color: #2f4b7c; border-bottom: 2px solid #2f4b7c; }
+  .dashboard-title { font-size: 2.3rem; font-weight: 800; color: #003f5c; margin-bottom: 1.5rem; }
+  .filtros-dash { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .filtros-dash select, .filtros-dash input { border-radius: 8px; border: 1px solid #cfd8dc; padding: 0.5rem 1rem; font-size: 1rem; background: #f7f9fb; color: #003f5c; }
+  .btn-dash { background: #003f5c; color: #fff; border-radius: 8px; border: none; padding: 0.7rem 2rem; font-weight: 600; font-size: 1.1rem; box-shadow: 0 2px 8px rgba(0,63,92,0.08); transition: background 0.2s; }
+  .btn-dash:hover { background: #2f4b7c; }
+  .kpi-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,63,92,0.08); border: 1px solid #e3e8ee; padding: 1.2rem 1.5rem; margin-bottom: 1.2rem; display: flex; flex-direction: column; align-items: flex-start; }
+  .kpi-title { font-size: 1.1rem; color: #2f4b7c; font-weight: 700; margin-bottom: 0.3rem; }
+  .kpi-value { font-size: 2.1rem; font-weight: 800; color: #003f5c; margin-bottom: 0.2rem; }
+  .kpi-var-pos { color: #2ecc40; font-weight: 700; }
+  .kpi-var-neg { color: #ff6361; font-weight: 700; }
+  .kpi-icon { font-size: 1.3rem; margin-right: 0.5rem; }
+  .table-dash { background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,63,92,0.07); border: 1px solid #e3e8ee; }
+  .table-dash th { background: #e3e8ee; color: #003f5c; font-weight: 700; }
+  .table-dash td { color: #222; }
+  .table-dash .var-pos { color: #2ecc40; font-weight: 700; }
+  .table-dash .var-neg { color: #ff6361; font-weight: 700; }
+  .ranking-box { background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,63,92,0.07); border: 1px solid #e3e8ee; padding: 1.2rem 1.5rem; margin-bottom: 1.2rem; }
+  .vs-box { background: #e3e8ee; border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1.2rem; }
+  .explicacion-auto { font-size: 1rem; color: #2f4b7c; margin-top: 0.7rem; margin-bottom: 0.7rem; }
+  .nota-legal { font-size: 0.9rem; color: #003f5c; margin-top: 2rem; }
+  @media (max-width: 900px) { .dashboard-title { font-size: 1.5rem; } .filtros-dash { flex-direction: column; gap: 1rem; } }
+</style>
+<div class="dashboard-bar mb-4 p-2 d-flex align-items-center">
+  <span class="dashboard-title flex-grow-1">Tablero Regional de Delitos</span>
+  
+</div>
+<div class="filtros-dash mb-3">
+  <div>
+    <label for="filtro-provincia">Provincia</label><br>
+    <select id="filtro-provincia"></select>
+  </div>
+  <div>
+    <label for="filtro-partido">Partido</label><br>
+    <select id="filtro-partido"></select>
+  </div>
+  <div>
+    <label for="filtro-delito">Delito</label><br>
+    <select id="filtro-delito"></select>
+  </div>
+  <!-- Filtro de año eliminado -->
+  <div style="align-self: end;">
+    <button class="btn-dash" id="btn-filtrar">Filtrar</button>
+  </div>
+  <div style="align-self: end;">
+    <input type="text" id="buscador-avanzado" class="form-control" placeholder="Buscar histórico avanzado...">
+  </div>
+</div>
+<!-- KPIs eliminados, vista histórica sube arriba -->
+<div class="table-dash mb-4" id="tabla-historica">
+  <h5 style="color:#003f5c;font-weight:700;">Vista histórica de datos</h5>
+  <div class="mb-2">
+    <button class="btn-dash" id="btn-export-csv">Exportar CSV</button>
+    <button class="btn-dash" id="btn-export-pdf">Exportar PDF</button>
+  </div>
+  <div id="tabla-historica-dinamica"></div>
+</div>
+<div class="ranking-box mb-4" id="ranking-delitos">
+  <h5 style="color:#003f5c;font-weight:700;">Ranking de delitos más frecuentes</h5>
+  <div id="tabla-ranking"></div>
+</div>
+<div class="ranking-box mb-4" id="ranking-variacion">
+  <h5 style="color:#003f5c;font-weight:700;">Ranking de provincias/partidos con mayor variación</h5>
+  <div id="tabla-variacion"></div>
+</div>
+
+<div class="nota-legal">
+MODELOS ENTRENADOS CON DATA SET DE PÚBLICO ACCESO: <a href="https://www.argentina.gob.ar/seguridad/estadisticascriminales/bases-de-datos" target="_blank" style="color:#003f5c;text-decoration:underline;">SNIC - Departamentos. Anual. Años 2000-2024</a>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// Exportar tabla histórica a CSV
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  const tabla = document.querySelector('#tabla-historica-dinamica table');
+  if (!tabla) return alert('No hay datos para exportar');
+  let csv = '';
+  const filas = tabla.querySelectorAll('tr');
+  filas.forEach((tr, i) => {
+    const cols = Array.from(tr.querySelectorAll('th,td')).map(td => '"' + td.textContent.replace(/"/g, '""') + '"');
+    csv += cols.join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'tabla_historica.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+// Exportar tabla histórica a PDF (captura del HTML)
+document.getElementById('btn-export-pdf').addEventListener('click', async () => {
+  const tabla = document.getElementById('tabla-historica-dinamica');
+  if (!tabla) return alert('No hay datos para exportar');
+  try {
+    const explicacion = 'Esta tabla muestra los datos históricos filtrados según los criterios seleccionados. Las variaciones porcentuales indican el cambio interanual en la cantidad de delitos.';
+    const canvas = await html2canvas(tabla);
+    const imgData = canvas.toDataURL('image/png');
+    const jsPDF = window.jspdf.jsPDF;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    pdf.setFontSize(14);
+    pdf.text('Reporte de Tabla Histórica de Delitos', 10, 20);
+    pdf.setFontSize(10);
+    pdf.text(explicacion, 10, 28, { maxWidth: 190 });
+    pdf.addImage(imgData, 'PNG', 10, 35, 190, 0);
+    pdf.save('tabla_historica.pdf');
+  } catch (err) {
+    alert('Error al generar PDF: ' + err);
+  }
+});
+function poblarSelect(id, opciones) {
+  const select = document.getElementById(id);
+  select.innerHTML = '<option value="">Todos</option>';
+  opciones.forEach(op => {
+    const opt = document.createElement('option');
+    opt.value = op;
+    opt.textContent = op;
+    select.appendChild(opt);
+  });
+}
+async function cargarFiltros() {
+  const res = await fetch('/api/filtros');
+  const data = await res.json();
+  poblarSelect('filtro-provincia', data.provincias);
+  poblarSelect('filtro-partido', data.partidos);
+  poblarSelect('filtro-delito', data.delitos);
+}
+window.addEventListener('DOMContentLoaded', cargarFiltros);
+
+// Actualizar partidos según provincia seleccionada
+async function actualizarPartidos() {
+  const provincia = document.getElementById('filtro-provincia').value;
+  let url = '/api/filtros';
+  if (provincia) url += `?provincia=${encodeURIComponent(provincia)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  poblarSelect('filtro-partido', data.partidos);
+}
+document.getElementById('filtro-provincia').addEventListener('change', actualizarPartidos);
+
+async function cargarTablaHistorica() {
+  const provincia = document.getElementById('filtro-provincia').value;
+  const partido = document.getElementById('filtro-partido').value;
+  const delito = document.getElementById('filtro-delito').value;
+  let url = '/api/historico_financiero?';
+  if (provincia) url += `provincia=${encodeURIComponent(provincia)}&`;
+  if (partido) url += `partido=${encodeURIComponent(partido)}&`;
+  if (delito) url += `delito=${encodeURIComponent(delito)}&`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const cont = document.getElementById('tabla-historica-dinamica');
+  let html = `<table class='table table-bordered'><thead><tr><th>Año</th><th>Provincia</th><th>Partido</th><th>Delito más común</th><th>Cantidad</th><th>Variación %</th></tr></thead><tbody>`;
+  data.forEach(row => {
+    let varColor = '';
+    let varTxt = '-';
+    if (row.Variacion !== null && row.Variacion !== undefined) {
+      // Invertir colores: verde para negativo, rojo para positivo
+      varColor = row.Variacion < 0 ? 'var-pos' : 'var-neg';
+      varTxt = (row.Variacion >= 0 ? '+' : '') + row.Variacion.toFixed(2) + '%';
+    }
+    html += `<tr><td>${row.Año}</td><td>${row.Provincia}</td><td>${row.Partido}</td><td>${row.DelitoComun}</td><td>${row.Cantidad}</td><td class='${varColor}'>${varTxt}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+document.getElementById('btn-filtrar').addEventListener('click', () => {
+  cargarTablaHistorica();
+  cargarRankingDelitos();
+  cargarRankingVariacion();
+});
+
+async function cargarRankingDelitos() {
+  const provincia = document.getElementById('filtro-provincia').value;
+  const partido = document.getElementById('filtro-partido').value;
+  let url = '/api/ranking_delitos?';
+  if (provincia) url += `provincia=${encodeURIComponent(provincia)}&`;
+  if (partido) url += `partido=${encodeURIComponent(partido)}&`;
+  url += 'anio_inicio=2000&anio_fin=2024&top=5';
+  const res = await fetch(url);
+  const data = await res.json();
+  const cont = document.getElementById('tabla-ranking');
+  let html = `<table class='table table-bordered'><thead><tr><th>Delito</th><th>Cantidad</th></tr></thead><tbody>`;
+  data.forEach(row => {
+    html += `<tr><td>${row.delito}</td><td>${row.valor}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+async function cargarRankingVariacion() {
+  const provincia = document.getElementById('filtro-provincia').value;
+  const delito = document.getElementById('filtro-delito').value;
+  let url = '/api/ranking_variacion?';
+  if (provincia) url += `provincia=${encodeURIComponent(provincia)}&`;
+  if (delito) url += `delito=${encodeURIComponent(delito)}&`;
+  url += 'top=5';
+  const res = await fetch(url);
+  const data = await res.json();
+  const cont = document.getElementById('tabla-variacion');
+  let html = `<table class='table table-bordered'><thead><tr><th>Provincia</th><th>Partido</th><th>Variación %</th><th>Inicial</th><th>Final</th></tr></thead><tbody>`;
+  html += `<tr><td colspan='5' style='color:#2f4b7c;font-weight:600;'>Mayores aumentos</td></tr>`;
+  data.mayor_aumento.forEach(row => {
+    html += `<tr><td>${row.provincia}</td><td>${row.partido}</td><td class='var-neg'>+${row.variacion}%</td><td>${row.inicial}</td><td>${row.final}</td></tr>`;
+  });
+  html += `<tr><td colspan='5' style='color:#003f5c;font-weight:600;'>Mayores descensos</td></tr>`;
+  data.mayor_descenso.forEach(row => {
+    html += `<tr><td>${row.provincia}</td><td>${row.partido}</td><td class='var-pos'>${row.variacion}%</td><td>${row.inicial}</td><td>${row.final}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+</script>
+{% endblock %}

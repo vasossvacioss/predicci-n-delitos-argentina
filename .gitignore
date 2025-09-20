@@ -1,0 +1,31 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter/Notebooks
+.ipynb_checkpoints/
+
+# Modelos y datos temporales
+*.pkl
+*.joblib
+*.csv
+*.xlsx
+*.db
+!app/data/delitos.db
+
+# Archivos de entorno
+.env
+
+# Archivos de exportación
+*.pdf
+*.csv
+
+# Archivos de sistema
+🚀 Prompt Mejorado V2 — Dashboard Estadísticas de Delitos.md
+test_app.py
+convert_excel_to_json.py
+.DS_Store
+Thumbs.db

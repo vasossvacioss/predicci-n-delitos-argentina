@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Estadísticas de Delitos{% endblock %}
+{% block content %}
+<!-- Filtros globales -->
+<div id="filtros-globales" class="mb-4">
+  <!-- Selects de Provincia, Partido, Año, Delito -->
+</div>
+<!-- KPIs principales -->
+<div id="kpi-container" class="row mb-4">
+  <!-- Tarjetas de KPIs -->
+</div>
+<!-- Gráficos principales -->
+<div class="row">
+  <div class="col-md-6 mb-4"><canvas id="evolucionChart"></canvas></div>
+  <div class="col-md-6 mb-4"><canvas id="generoChart"></canvas></div>
+</div>
+<div class="row">
+  <div class="col-md-12 mb-4"><canvas id="rankingChart"></canvas></div>
+</div>
+{% endblock %}

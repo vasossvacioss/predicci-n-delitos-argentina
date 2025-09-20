@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Provincias{% endblock %}
+{% block content %}
+<h3>Listado de Provincias</h3>
+<div class="card p-4 mb-4">
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <input type="text" id="busca-prov" class="form-control" placeholder="Buscar provincia...">
+    </div>
+    <div class="col-md-2">
+      <button type="button" id="btn-buscar-prov" class="btn btn-primary">Buscar</button>
+    </div>
+  </div>
+  <table class="table table-bordered" id="tabla-provincias">
+    <thead>
+      <tr>
+        <th>Provincia</th>
+        <th>Partido más crítico</th>
+        <th>Año más delitos en partido</th>
+        <th>Total Delitos</th>
+        <th>Total Víctimas</th>
+        <th>Delito más frecuente</th>
+        <th>Año más crítico</th>
+        <th>% Mujeres</th>
+        <th>% Hombres</th>
+        <th>Tasa Delitos</th>
+        <th>Tasa Víctimas</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<div id="partidos-detalle" class="card p-4 mb-4"></div>
+<script>
+async function getKPIsProvincia(provincia) {
+  const res = await fetch(`/api/kpis?provincia=${encodeURIComponent(provincia)}`);
+  return await res.json();
+}
+async function getPartidoCritico(provincia) {
+  const res = await fetch(`/api/ranking_partidos?provincia=${encodeURIComponent(provincia)}&top=5`);
+  const data = await res.json();
+  // Omitir 'Departamento sin determinar'
+  const partido = data.find(([nombre]) => nombre !== 'Departamento sin determinar');
+  return partido ? partido[0] : '-';
+}
+async function getAnioMaxPartido(provincia, partido) {
+  const res = await fetch(`/api/kpis?provincia=${encodeURIComponent(provincia)}&partido=${encodeURIComponent(partido)}`);
+  const kpi = await res.json();
+  return kpi.anio_max ?? '-';
+}
+async function getPartidos(provincia) {
+  const res = await fetch('/api/filtros');
+  const data = await res.json();
+  return data.partidos.filter(p => p && p !== '' && p !== null && p !== 'Departamento sin determinar');
+}
+async function getKPIsPartido(provincia, partido) {
+  const res = await fetch(`/api/kpis?provincia=${encodeURIComponent(provincia)}&partido=${encodeURIComponent(partido)}`);
+  return await res.json();
+}
+async function cargarProvincias(filtro = '') {
+  console.log('Iniciando carga de provincias...'); // LOG inicial
+  try {
+    const res = await fetch('/api/filtros');
+    const data = await res.json();
+    console.log('Datos de /api/filtros:', data); // LOG para depuración
+    const tbody = document.querySelector('#tabla-provincias tbody');
+    if (tbody) {
+      tbody.innerHTML = '';
+      let provinciasFiltradas = data.provincias;
+      if (filtro && filtro.trim() !== '') {
+        provinciasFiltradas = provinciasFiltradas.filter(p => p.toLowerCase().includes(filtro.toLowerCase()));
+      }
+      if (provinciasFiltradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#2f4b7c;font-weight:600;">No se encontraron provincias con ese criterio.</td></tr>';
+        return;
+      }
+      for (const prov of provinciasFiltradas) {
+        console.log('Provincia procesada:', prov); // LOG para depuración
+        const partidoCritico = await getPartidoCritico(prov);
+        const anioMaxPartido = partidoCritico !== '-' ? await getAnioMaxPartido(prov, partidoCritico) : '-';
+        const kpi = await getKPIsProvincia(prov);
+        console.log('KPI provincia:', prov, kpi); // LOG para depuración
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="prov-link" style="cursor:pointer;color:#007bff;text-decoration:underline;">${prov}</td><td>${partidoCritico}</td><td>${anioMaxPartido}</td><td>${kpi.total_delitos}</td><td>${kpi.total_victimas}</td><td>${kpi.delito_frecuente}</td><td>${kpi.anio_max}</td><td>${kpi.porc_mujeres}%</td><td>${kpi.porc_hombres}%</td><td>${kpi.tasa_delitos}</td><td>${kpi.tasa_victimas}</td>`;
+        tbody.appendChild(tr);
+      }
+      // Evento click para mostrar partidos
+      document.querySelectorAll('.prov-link').forEach(td => {
+        td.onclick = async function() {
+          const provincia = td.textContent;
+          await mostrarPartidosDetalle(provincia);
+        };
+      });
+    }
+  } catch (err) {
+    console.error('Error al cargar provincias:', err);
+    const tbody = document.querySelector('#tabla-provincias tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#ff6361;font-weight:600;">Error al cargar provincias.</td></tr>';
+  }
+}
+async function mostrarPartidosDetalle(provincia) {
+  const partidos = await getPartidos(provincia);
+  const container = document.getElementById('partidos-detalle');
+  let html = `<h4>Partidos de ${provincia}</h4><table class="table table-bordered"><thead><tr><th>Partido</th><th>Total Delitos</th><th>Total Víctimas</th><th>Delito más frecuente</th><th>Año más crítico</th><th>% Mujeres</th><th>% Hombres</th><th>Tasa Delitos</th><th>Tasa Víctimas</th></tr></thead><tbody>`;
+  for (const partido of partidos) {
+    const kpi = await getKPIsPartido(provincia, partido);
+    if (kpi.total_delitos > 0) { // Solo muestra partidos con datos
+      html += `<tr><td>${partido}</td><td>${kpi.total_delitos}</td><td>${kpi.total_victimas}</td><td>${kpi.delito_frecuente}</td><td>${kpi.anio_max}</td><td>${kpi.porc_mujeres}%</td><td>${kpi.porc_hombres}%</td><td>${kpi.tasa_delitos}</td><td>${kpi.tasa_victimas}</td></tr>`;
+    }
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+document.getElementById('btn-buscar-prov').addEventListener('click', function() {
+  const filtro = document.getElementById('busca-prov').value;
+  cargarProvincias(filtro);
+  document.getElementById('partidos-detalle').innerHTML = '';
+});
+window.addEventListener('DOMContentLoaded', function() {
+  cargarProvincias();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Comparar VS{% endblock %}
+{% block content %}
+<style>
+  body { background: #f7f9fb; font-family: 'Roboto', Arial, sans-serif; }
+  .card-vs { background: #fff; border-radius: 18px; box-shadow: 0 2px 12px rgba(0,63,92,0.08); border: 1px solid #e3e8ee; margin-bottom: 2rem; }
+  .titulo-vs { font-size: 2.2rem; font-weight: 700; color: #003f5c; margin-bottom: 1.5rem; }
+  .filtros-vs label { color: #2f4b7c; font-weight: 600; }
+  .filtros-vs select { border-radius: 8px; border: 1px solid #cfd8dc; padding: 0.5rem 1rem; font-size: 1rem; background: #f7f9fb; color: #003f5c; }
+  .btn-vs { background: #003f5c; color: #fff; border-radius: 8px; border: none; padding: 0.7rem 2rem; font-weight: 600; font-size: 1.1rem; box-shadow: 0 2px 8px rgba(0,63,92,0.08); transition: background 0.2s; }
+  .btn-vs:hover { background: #2f4b7c; }
+  .kpi-vs-box { background: #e3e8ee; border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1.2rem; font-size: 1.1rem; color: #003f5c; font-weight: 500; box-shadow: 0 1px 6px rgba(0,63,92,0.07); }
+  .kpi-vs-valor { font-size: 2.2rem; font-weight: 800; color: #003f5c; margin-bottom: 0.5rem; }
+  .kpi-vs-badge { background: #2f4b7c; color: #fff; border-radius: 8px; font-size: 1rem; padding: 0.3em 0.8em; margin-right: 0.5em; }
+  .grafico-vs-box { background: #fff; border-radius: 12px; padding: 1.2rem 1.5rem; box-shadow: 0 1px 6px rgba(0,63,92,0.07); border: 1px solid #e3e8ee; }
+  .analisis-vs-box { background: #e3e8ee; border-radius: 12px; padding: 1.2rem 1.5rem; color: #2f4b7c; font-size: 1.1rem; font-weight: 500; box-shadow: 0 1px 6px rgba(0,63,92,0.07); }
+  @media (max-width: 900px) { .card-vs { padding: 1rem; } }
+</style>
+<div class="container mt-4">
+  <div class="card-vs p-4 mb-4">
+    <div class="mb-2">
+      <button type="button" class="btn btn-primary" id="btn-export-pdf-comparativa">Exportar PDF</button>
+    </div>
+    <div class="titulo-vs">Comparativa VS</div>
+    <div class="row mb-4 filtros-vs">
+      <div class="col-md-5">
+        <label for="provinciaA" class="form-label">Provincia A</label>
+        <select id="provinciaA" class="form-select"></select>
+      </div>
+      <div class="col-md-5">
+        <label for="provinciaB" class="form-label">Provincia B</label>
+        <select id="provinciaB" class="form-select"></select>
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <button type="button" id="btn-comparar" class="btn-vs w-100">Comparar</button>
+      </div>
+    </div>
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <h5 style="color:#2f4b7c;font-weight:700;">KPIs Provincia A</h5>
+        <div class="kpi-vs-box" id="kpi-provA">-</div>
+      </div>
+      <div class="col-md-6">
+        <h5 style="color:#2f4b7c;font-weight:700;">KPIs Provincia B</h5>
+        <div class="kpi-vs-box" id="kpi-provB">-</div>
+      </div>
+    </div>
+  </div>
+  <div class="grafico-vs-box mb-4">
+    <h5 style="color:#003f5c;font-weight:700;">Radar Comparativo</h5>
+    <canvas id="graficoComparativo" height="220"></canvas>
+  </div>
+  <div class="analisis-vs-box mb-4">
+    <h5 style="color:#003f5c;font-weight:700;">Análisis textual</h5>
+    <div id="analisis-textual">-</div>
+  </div>
+</div>
+<script>
+// Librerías para exportar PDF
+const script1 = document.createElement('script');
+script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+document.head.appendChild(script1);
+const script2 = document.createElement('script');
+script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+document.head.appendChild(script2);
+
+document.getElementById('btn-export-pdf-comparativa').addEventListener('click', function() {
+  (async function() {
+    try {
+      var kpiA = document.getElementById('kpi-provA');
+      var kpiB = document.getElementById('kpi-provB');
+      var grafRadar = document.getElementById('graficoComparativo');
+      var analisis = document.getElementById('analisis-textual');
+      var jsPDF = window.jspdf.jsPDF;
+      var pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.setFontSize(14);
+      pdf.text('Reporte Comparativo VS', 10, 20);
+      pdf.setFontSize(10);
+      var explicacion = 'Este PDF contiene la comparación entre dos provincias seleccionadas, mostrando KPIs, gráfico radar y análisis textual.\n\n';
+      explicacion += 'KPIs: Resumen de indicadores clave para cada provincia.\n';
+      explicacion += 'Gráfico radar: Visualiza la comparación de tasas y totales entre ambas provincias.\n';
+      explicacion += 'Análisis textual: Explicación automática de las diferencias encontradas.';
+      pdf.text(explicacion, 10, 28, { maxWidth: 190 });
+      if (kpiA) {
+        var canvasA = await html2canvas(kpiA);
+        pdf.addImage(canvasA.toDataURL('image/png'), 'PNG', 10, 50, 90, 0);
+      }
+      if (kpiB) {
+        var canvasB = await html2canvas(kpiB);
+        pdf.addImage(canvasB.toDataURL('image/png'), 'PNG', 110, 50, 90, 0);
+      }
+      if (grafRadar) {
+        var canvasRadar = await html2canvas(grafRadar);
+        pdf.addPage();
+        pdf.text('Gráfico radar comparativo', 10, 20, { maxWidth: 190 });
+        pdf.addImage(canvasRadar.toDataURL('image/png'), 'PNG', 10, 30, 190, 0);
+      }
+      if (analisis) {
+        pdf.addPage();
+        pdf.text('Análisis textual', 10, 20, { maxWidth: 190 });
+        pdf.text(analisis.textContent, 10, 30, { maxWidth: 190 });
+      }
+      pdf.save('comparativa_vs.pdf');
+    } catch (err) {
+      alert('Error al generar PDF: ' + err);
+    }
+  })();
+});
+function poblarSelectProvincias(id, provincias) {
+  const select = document.getElementById(id);
+  select.innerHTML = '<option value="">Seleccione provincia</option>';
+  provincias.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    select.appendChild(opt);
+  });
+}
+async function cargarProvinciasVS() {
+  try {
+    const res = await fetch('/api/filtros');
+    const data = await res.json();
+    console.log('Provincias VS:', data.provincias); // LOG para depuración
+    poblarSelectProvincias('provinciaA', data.provincias);
+    poblarSelectProvincias('provinciaB', data.provincias);
+  } catch (err) {
+    console.error('Error al cargar provincias VS:', err);
+  }
+}
+window.addEventListener('DOMContentLoaded', cargarProvinciasVS);
+</script>
+{% endblock %}

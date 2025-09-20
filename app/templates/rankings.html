@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}Rankings{% endblock %}
+{% block content %}
+<h3>Ranking de Partidos con más Delitos</h3>
+<div class="card p-4 mb-4">
+  <div class="row mb-3">
+    <div class="col-md-12 mb-2">
+      <button type="button" class="btn btn-primary" id="btn-export-pdf-ranking">Exportar PDF</button>
+    </div>
+    <div class="col-md-4">
+      <label for="provincia-rank" class="form-label">Provincia</label>
+      <select id="provincia-rank" class="form-select"></select>
+    </div>
+    <div class="col-md-4">
+      <label for="anio-rank" class="form-label">Año</label>
+      <select id="anio-rank" class="form-select"></select>
+    </div>
+    <div class="col-md-4 mt-4">
+      <button type="button" id="btn-filtrar-rank" class="btn btn-primary">Filtrar Ranking</button>
+    </div>
+  </div>
+  <table class="table table-bordered" id="tabla-ranking">
+    <thead>
+      <tr>
+        <th>Partido</th>
+        <th>Cantidad de Delitos</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<div class="card p-4 mb-4">
+  <h4 class="mt-2">Delitos más frecuentes en partidos del ranking</h4>
+  <table class="table table-bordered" id="tabla-delitos-frecuentes">
+    <thead>
+      <tr>
+        <th>Partido</th>
+        <th>Delito más frecuente</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<script>
+function poblarSelect(id, opciones) {
+  const select = document.getElementById(id);
+  select.innerHTML = '<option value="">Todos</option>';
+  opciones.forEach(op => {
+    const opt = document.createElement('option');
+    opt.value = op;
+    opt.textContent = op;
+    select.appendChild(opt);
+  });
+}
+function cargarFiltrosRanking() {
+  fetch('/api/filtros')
+    .then(res => res.json())
+    .then(data => {
+      poblarSelect('provincia-rank', data.provincias);
+      poblarSelect('anio-rank', data.anios);
+    });
+}
+async function getRankingPartidos(provincia, anio) {
+  const params = new URLSearchParams({ provincia, anio });
+  const res = await fetch(`/api/ranking_partidos?${params}`);
+  let data = await res.json();
+  // Omitir 'Departamento sin determinar'
+  data = data.filter(([partido]) => partido !== 'Departamento sin determinar');
+  return data;
+}
+async function getDelitoFrecuente(provincia, partido, anio) {
+  const params = new URLSearchParams({ provincia, partido });
+  if (anio) params.append('anio', anio);
+  const res = await fetch(`/api/kpis?${params}`);
+  const kpi = await res.json();
+  return kpi.delito_frecuente ?? '-';
+}
+async function cargarRanking() {
+  const provincia = document.getElementById('provincia-rank').value;
+  const anio = document.getElementById('anio-rank').value;
+  const ranking = await getRankingPartidos(provincia, anio);
+  const tbody = document.querySelector('#tabla-ranking tbody');
+  tbody.innerHTML = '';
+  for (const [partido, cantidad] of ranking) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${partido}</td><td>${cantidad}</td>`;
+    tbody.appendChild(tr);
+  }
+  // Tabla de delitos más frecuentes SOLO partidos del ranking y provincia
+  const tbodyDelitos = document.querySelector('#tabla-delitos-frecuentes tbody');
+  tbodyDelitos.innerHTML = '';
+  for (const [partido] of ranking) {
+    if (partido !== 'Departamento sin determinar') {
+      const delito = await getDelitoFrecuente(provincia, partido, anio);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${partido}</td><td>${delito}</td>`;
+      tbodyDelitos.appendChild(tr);
+    }
+  }
+}
+document.getElementById('btn-filtrar-rank').addEventListener('click', cargarRanking);
+// Librerías para exportar PDF
+const script1 = document.createElement('script');
+script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+document.head.appendChild(script1);
+const script2 = document.createElement('script');
+script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+document.head.appendChild(script2);
+
+document.getElementById('btn-export-pdf-ranking').addEventListener('click', function() {
+  (async function() {
+    try {
+      var tablaRanking = document.getElementById('tabla-ranking');
+      var tablaDelitos = document.getElementById('tabla-delitos-frecuentes');
+      var jsPDF = window.jspdf.jsPDF;
+      var pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.setFontSize(14);
+      pdf.text('Reporte de Rankings de Delitos', 10, 20);
+      pdf.setFontSize(10);
+      var explicacion = 'Este PDF contiene los rankings filtrados de partidos con más delitos y los delitos más frecuentes en cada partido.\n\n';
+      explicacion += 'Tabla 1: Ranking de partidos según cantidad de delitos registrados.\n';
+      explicacion += 'Tabla 2: Delito más frecuente en cada partido del ranking.\n';
+      explicacion += 'Este reporte permite compartir y visualizar los datos filtrados de manera clara y profesional.';
+      pdf.text(explicacion, 10, 28, { maxWidth: 190 });
+      if (tablaRanking) {
+        var canvasRanking = await html2canvas(tablaRanking);
+        pdf.addImage(canvasRanking.toDataURL('image/png'), 'PNG', 10, 50, 190, 0);
+      }
+      if (tablaDelitos) {
+        pdf.addPage();
+        pdf.text('Delitos más frecuentes por partido', 10, 20, { maxWidth: 190 });
+        var canvasDelitos = await html2canvas(tablaDelitos);
+        pdf.addImage(canvasDelitos.toDataURL('image/png'), 'PNG', 10, 30, 190, 0);
+      }
+      pdf.save('ranking_delitos.pdf');
+    } catch (err) {
+      alert('Error al generar PDF: ' + err);
+    }
+  })();
+});
+
+window.addEventListener('DOMContentLoaded', function() {
+  cargarFiltrosRanking();
+});
+</script>
+{% endblock %}

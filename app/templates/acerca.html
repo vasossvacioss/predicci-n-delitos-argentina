@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Acerca del Proyecto{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card p-4 mb-4" style="background:#f7f9fb;border-radius:16px;">
+    <h2 style="color:#003f5c;font-weight:800;">¿De qué se trata este proyecto?</h2>
+    <p style="font-size:1.15rem;color:#2f4b7c;">
+      Este proyecto permite analizar, visualizar y predecir estadísticas de delitos en Argentina, integrando datos históricos públicos y modelos de predicción avanzados. El usuario puede filtrar por provincia, partido, año y tipo de delito, obteniendo KPIs, rankings, comparativas y predicciones interactivas. Todas las visualizaciones pueden exportarse a CSV y PDF.
+    </p>
+    <h4 style="color:#003f5c;font-weight:700;">Enfoque sobre el modelo de predicción</h4>
+    <p style="font-size:1.08rem;color:#222;">
+      El sistema utiliza dos enfoques principales para la predicción:
+      <ul>
+        <li><b>Prophet (serie temporal):</b> predice la evolución de delitos por año, detectando tendencias y estacionalidades.</li>
+        <li><b>Regresión lineal:</b> estima la variación de delitos según provincia, partido y tipo de delito.</li>
+      </ul>
+      Los modelos se entrenan con datos públicos del SNIC, aplicando limpieza y validación rigurosa para evitar sesgos y errores. Solo se muestran predicciones si hay datos suficientes y validados.
+    </p>
+    <h4 style="color:#003f5c;font-weight:700;">Limitaciones y descargo de responsabilidad</h4>
+    <p style="font-size:1.08rem;color:#222;">
+      <b>Importante:</b> Las predicciones y visualizaciones son estimaciones basadas en datos históricos públicos. El resultado depende de la calidad, cantidad y consistencia de los datos originales. No se garantiza exactitud absoluta y no debe usarse para decisiones judiciales, policiales o administrativas sin validación adicional.<br>
+      <br>
+      El equipo desarrollador y los autores del proyecto no se responsabilizan por errores, omisiones o interpretaciones derivadas del uso de los modelos predictivos. Se recomienda siempre consultar fuentes oficiales y realizar análisis complementarios.
+    </p>
+    <h4 style="color:#003f5c;font-weight:700;">Transparencia y trazabilidad</h4>
+    <p style="font-size:1.08rem;color:#222;">
+      Todos los modelos, scripts de entrenamiento y procesos de limpieza están documentados y disponibles para auditoría. Los modelos omitidos o descartados por falta de datos quedan registrados en archivos de log para trazabilidad.
+    </p>
+    <div style="font-size:1rem;color:#003f5c;margin-top:1rem;">
+      <b>Dataset utilizado:</b>
+      <a href="https://www.argentina.gob.ar/seguridad/estadisticascriminales/bases-de-datos" target="_blank" style="color:#2f4b7c;text-decoration:underline;">
+        SNIC - Departamentos. Anual. Años 2000-2024
+      </a>
+      <br>
+      Fuente: Ministerio de Seguridad de la Nación Argentina
+      <br><br>
+      <b>Repositorio y código fuente:</b>
+      <a href="https://github.com/vasossvacioss/predicci-n-delitos-argentina.git" target="_blank" style="color:#2f4b7c;text-decoration:underline;">
+        github.com/vasossvacioss/predicci-n-delitos-argentina
+      </a>
+      <br>
+      Incluye scripts de entrenamiento, limpieza, modelos y documentación técnica.
+    </div>
+    <hr style="margin:2rem 0;">
+    <h4 style="color:#003f5c;font-weight:700;">Aclaraciones sobre las vistas principales</h4>
+    <ul style="font-size:1.05rem;color:#222;">
+      <li><b>Dashboard principal:</b> Muestra KPIs, gráficos y tendencias generales. Los datos pueden filtrarse por provincia, partido, año y tipo de delito. Las visualizaciones reflejan únicamente los datos disponibles y validados.</li>
+      <li><b>Ranking de delitos:</b> Presenta los partidos y provincias con mayor cantidad de delitos según los filtros seleccionados. El ranking depende de la granularidad y calidad de los datos originales.</li>
+      <li><b>Comparativa histórica:</b> Permite comparar la evolución de delitos entre distintas provincias, partidos o tipos de delito. Las comparativas pueden verse afectadas por cambios en la metodología de registro o disponibilidad de datos.</li>
+      <li><b>Predicción:</b> Utiliza modelos Prophet y regresión lineal para estimar tendencias futuras. Solo se muestran predicciones si hay datos suficientes y consistentes. Las predicciones son orientativas y no deben usarse para decisiones críticas.</li>
+      <li><b>Tablero regional:</b> Visualiza la distribución geográfica de delitos por departamento y provincia. La precisión depende de la actualización y cobertura del dataset.</li>
+      <li><b>Exportación a CSV/PDF:</b> Todas las tablas y gráficos pueden exportarse. La exportación incluye una explicación automática sobre el contexto y los filtros aplicados.</li>
+    </ul>
+    <div style="font-size:0.98rem;color:#2f4b7c;margin-top:1rem;">
+      <b>Nota:</b> Las visualizaciones y rankings pueden variar según los filtros aplicados y la disponibilidad de datos. Ante dudas, consultar la fuente oficial o la documentación técnica incluida en el proyecto.
+    </div>
+    </p>
+    <div style="font-size:0.95rem;color:#2f4b7c;margin-top:2rem;">
+      <b>Desarrollado por Javier y GitHub Copilot.</b>
+      <br>
+      <a href="https://www.linkedin.com/in/javier-romero-arce-079770118/" target="_blank" style="color:#003f5c;text-decoration:underline;">
+        Perfil LinkedIn: Javier Romero Arce
+      </a>
+      <br><br>
+      <span style="color:#222;font-size:0.98rem;">
+        <b>¡Bienvenidos todos los que quieran aportar al proyecto desinteresadamente!</b> Se valoran especialmente las críticas constructivas, sugerencias y colaboraciones que ayuden a mejorar la calidad, transparencia y utilidad de este dashboard.
+      </span>
+    </div>
+  </div>
+</div>
+{% endblock %}
