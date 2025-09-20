@@ -1,4 +1,4 @@
 flask
 pandas
-sqlite3
 bootstrap-flask
+gunicorn
