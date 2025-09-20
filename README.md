@@ -178,4 +178,4 @@ Thumbs.db
 
 ---
 
-Desarrollado por Javier y GitHub Copilot.
+Desarrollado por Javier .
